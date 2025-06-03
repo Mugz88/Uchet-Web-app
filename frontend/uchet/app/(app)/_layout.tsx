@@ -49,15 +49,21 @@ export default function AppLayout() {
 				})}
 			>
 				<Drawer.Screen
-					name="index"
+					name="home"
 					options={{
-						title: 'Мои курсы',
+						title: 'Главная',
 					}}
 				/>
 				<Drawer.Screen
-					name="profile"
+					name="storage"
 					options={{
-						title: 'Профиль',
+						title: 'Хранилища',
+					}}
+				/>
+				<Drawer.Screen
+					name="stats"
+					options={{
+						title: 'Статистика',
 					}}
 				/>
 			</Drawer>

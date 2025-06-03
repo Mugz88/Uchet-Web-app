@@ -49,7 +49,7 @@ export default function App() {
             />
             <Button text='Войти' onPress={submit} isLoading={isLoading} />
           </View>
-        <CustomLink href={'restore/restore'} text="Тех. поддержка" />
+        <CustomLink href={'(auth)/restore/restore'} text="Тех. поддержка" />
       </View>
     </View>
   );

@@ -1,4 +1,4 @@
-import { DrawerContentComponentProps } from '@react-navigation/drawer/lib/typescript/src/types';
+import { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { ReactNode, useState } from 'react';
 import { Pressable, PressableProps, StyleSheet, Text, View } from 'react-native';
 import { Colors, Fonts, Gaps } from '../../../../shared/tokens';
@@ -20,14 +20,14 @@ export function MenuItem({ drawer, icon, text, path, ...props }: MenuItemProps &
 			onPress={() => drawer.navigation.navigate(path)}
 			onPressIn={() => setClicked(true)}
 			onPressOut={() => setClicked(false)}
-		>
+			>
 			<View
 				style={{
 					...styles.menu,
 					borderColor: isActive ? Colors.primary : Colors.black,
 					backgroundColor: clicked || isActive ? Colors.violetDark : Colors.black,
 				}}
-			>
+				>
 				{icon}
 				<Text style={styles.text}>{text}</Text>
 			</View>

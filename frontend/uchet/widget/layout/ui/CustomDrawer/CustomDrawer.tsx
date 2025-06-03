@@ -1,5 +1,5 @@
 import { DrawerContentComponentProps, DrawerContentScrollView } from '@react-navigation/drawer';
-import { View, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet, Image, processColor } from 'react-native';
 import { Colors } from '../../../../shared/tokens';
 import { CustomLink } from '../../../../shared/CustomLink/CustomLink';
 import { CloseDrawer } from '../../../../features/layout/ui/CloseDrawer/CloseDrawer.android';
@@ -7,9 +7,11 @@ import CoursesIcon from '../../../../assets/menu/courses';
 import ProfileIcon from '../../../../assets/menu/profile';
 import { MenuItem } from '../../../../entities/layout/ui/MenuItem/MenuItem';
 import { useAuth } from '../../../../entities/auth/AuthContext';
+import { getBackgroundColorAsync } from 'expo-system-ui';
 const MENU = [
 	{ text: 'Главная', icon: <CoursesIcon />, path: 'home' },
-	{ text: 'Хранилища', icon: <ProfileIcon />, path: 'profile' },
+	{ text: 'Хранилища', icon: <ProfileIcon />, path: 'storage' },
+	{ text: 'Статистика', icon: <ProfileIcon />, path: 'stats' },
 ];
 
 export function CustomDrawer(props: DrawerContentComponentProps) {
@@ -23,7 +25,7 @@ export function CustomDrawer(props: DrawerContentComponentProps) {
 				))}
 			</View>
 			<View style={styles.footer}>
-				<CustomLink text="Выход" onPress={() => logout()} href={'/login'} />
+				<CustomLink text="Выход" onPress={() => logout()} href={'/'} />
 				<Image
 					style={styles.logo}
 					source={require('../../../../assets/Logo.png')}
@@ -49,5 +51,7 @@ const styles = StyleSheet.create({
 	},
 	logo: {
 		width: 160,
+		height: 160,
+		marginBottom: 300,
 	},
 });

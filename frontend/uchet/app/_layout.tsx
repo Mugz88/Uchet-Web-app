@@ -47,7 +47,7 @@ export default function RootRayout() {
 			>
 				<Stack.Screen name="login" />
 				<Stack.Screen
-					name="restore"
+					name="(auth)/restore/restore"
 					options={{
 						presentation: 'modal',
 					}}
