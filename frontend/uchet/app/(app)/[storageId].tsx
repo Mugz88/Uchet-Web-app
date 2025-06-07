@@ -3,29 +3,38 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   TextInput,
+  TouchableOpacity,
   Modal,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import FloatingButton from '../../shared/Button/FloatingButton';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function HomeScreen() {
-  const [storages, setStorages] = useState<string[]>([]);
+
+
+export default function StorageDetailScreen() {
+  const { storageId } = useLocalSearchParams<{ storageId: string }>();
+  const [items, setItems] = useState<{ name: string; quantity: number }[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [newStorageName, setNewStorageName] = useState('');
+  const [newItem, setNewItem] = useState('');
+  const [quantity, setQuantity] = useState('1');
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const inputRef = useRef<TextInput>(null);
-  const router = useRouter();
+
+  
 
   useEffect(() => {
-    loadStorages();
-  }, []);
+    if (storageId) {
+      
+      loadItems();
+    }
+  }, [storageId]);
 
   useEffect(() => {
     if (modalVisible) {
@@ -33,56 +42,59 @@ export default function HomeScreen() {
     }
   }, [modalVisible]);
 
-  const loadStorages = async () => {
-    const data = await AsyncStorage.getItem('storages');
-    if (data) setStorages(JSON.parse(data));
-    else setStorages([]);
+  const getStorageKey = () => `items:${storageId}`;
+
+  const loadItems = async () => {
+    const key = getStorageKey();
+    const data = await AsyncStorage.getItem(key);
+    if (data) {
+      try {
+        setItems(JSON.parse(data));
+      } catch {
+        setItems([]);
+      }
+    } else {
+      setItems([]);
+    }
   };
 
-  const saveStorages = async (newList: string[]) => {
-    setStorages(newList);
-    await AsyncStorage.setItem('storages', JSON.stringify(newList));
+  const saveItems = async (newItems: typeof items) => {
+    const key = getStorageKey();
+    setItems(newItems);
+    await AsyncStorage.setItem(key, JSON.stringify(newItems));
   };
 
-  const addStorage = async () => {
-    const trimmed = newStorageName.trim();
-    if (!trimmed || storages.includes(trimmed)) return;
+  const addItem = async () => {
+    const trimmed = newItem.trim();
+    const qty = parseInt(quantity);
+    if (!trimmed || isNaN(qty) || qty <= 0) return;
 
-    const updated = [...storages, trimmed];
-    await saveStorages(updated);
-    setNewStorageName('');
+    const updatedItems = [...items, { name: trimmed, quantity: qty }];
+    await saveItems(updatedItems);
+    setNewItem('');
+    setQuantity('1');
     setModalVisible(false);
   };
 
-  const deleteStorage = async (index: number) => {
-    const name = storages[index];
-    const updated = storages.filter((_, i) => i !== index);
-    await saveStorages(updated);
-    await AsyncStorage.removeItem(`items:${name}`); // удалить связанные предметы
-  };
-
-  const renderItem = ({ item, index }: { item: string; index: number }) => (
-    <TouchableOpacity
-      style={styles.storageBox}
-      onPress={() => router.push(`/${encodeURIComponent(item)}`)}
-    >
-      <Text style={styles.storageText}>{item}</Text>
+  const renderItem = ({ item, index }: { item: { name: string; quantity: number }; index: number }) => (
+    <View style={styles.itemRow}>
+      <Text style={styles.itemText}>{item.name} (x{item.quantity})</Text>
       <TouchableOpacity onPress={() => setConfirmDeleteIndex(index)}>
         <Ionicons name="trash-outline" size={22} color="red" />
       </TouchableOpacity>
-    </TouchableOpacity>
+    </View>
   );
 
   return (
     <View style={{ flex: 1, padding: 20 }}>
       <FlatList
-        data={storages}
-        keyExtractor={(item, index) => index.toString()}
+        data={items}
+        keyExtractor={(_, index) => index.toString()}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 100 }}
       />
 
-      {/* Добавление хранилища */}
+      {/* Добавить предмет */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -94,20 +106,27 @@ export default function HomeScreen() {
           style={styles.modalOverlay}
         >
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Новое хранилище</Text>
+            <Text style={styles.modalTitle}>Добавить предмет</Text>
             <TextInput
               ref={inputRef}
-              placeholder="Введите название"
-              value={newStorageName}
-              onChangeText={setNewStorageName}
+              placeholder="Название предмета"
+              value={newItem}
+              onChangeText={setNewItem}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Количество"
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="numeric"
               style={styles.input}
             />
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancel} onPress={() => setModalVisible(false)}>
                 <Text style={{ color: '#fff' }}>Отмена</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.create} onPress={addStorage}>
-                <Text style={{ color: '#fff' }}>Создать</Text>
+              <TouchableOpacity style={styles.create} onPress={addItem}>
+                <Text style={{ color: '#fff' }}>Добавить</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -123,8 +142,8 @@ export default function HomeScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Удалить хранилище?</Text>
-            <Text style={{ marginBottom: 20 }}>Все предметы внутри будут удалены.</Text>
+            <Text style={styles.modalTitle}>Удалить предмет?</Text>
+            <Text style={{ marginBottom: 20 }}>Это действие нельзя отменить.</Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.cancel}
@@ -136,9 +155,9 @@ export default function HomeScreen() {
                 style={styles.create}
                 onPress={async () => {
                   if (confirmDeleteIndex !== null) {
-                    await deleteStorage(confirmDeleteIndex);
+                    const updated = items.filter((_, i) => i !== confirmDeleteIndex);
+                    await saveItems(updated);
                     setConfirmDeleteIndex(null);
-                    loadStorages();
                   }
                 }}
               >
@@ -155,17 +174,16 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  storageBox: {
+  itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#ddeeff',
+    backgroundColor: '#f6f6f6',
     padding: 16,
     borderRadius: 10,
     marginBottom: 10,
   },
-  storageText: {
+  itemText: {
     fontSize: 16,
-    fontWeight: 'bold',
   },
   modalOverlay: {
     flex: 1,
@@ -202,7 +220,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   create: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#28a745',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,

@@ -8,8 +8,6 @@ export default function HomeScreen() {
 
   return (
     <>
-        
-        <ActivityIndicator style={styles.activity} size="large" color={Colors.primary} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text>Добро пожаловать, {user?.loginUser}!</Text>
         <Text>Роль: {user?.role}</Text>
