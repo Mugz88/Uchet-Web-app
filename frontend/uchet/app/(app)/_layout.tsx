@@ -53,8 +53,12 @@ export default function AppLayout() {
 				/>
 				<Drawer.Screen name="storage" options={{ title: 'Хранилища' }} />
 				<Drawer.Screen
-					name="stats" 
-					options={{ title: 'Статистика' }}
+					name="history" 
+					options={{ title: 'История' }}
+				/>
+				<Drawer.Screen
+					name="norms" 
+					options={{ title: 'Нормативы' }}
 				/>
 			</Drawer>
 		</GestureHandlerRootView>

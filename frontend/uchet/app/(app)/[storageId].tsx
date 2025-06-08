@@ -27,7 +27,9 @@ export default function StorageDetailScreen() {
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const inputRef = useRef<TextInput>(null);
 
-  
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  const [actionType, setActionType] = useState<'add' | 'subtract' | null>(null);
+  const [adjustQuantity, setAdjustQuantity] = useState('');
 
   useEffect(() => {
     if (storageId) {
@@ -77,12 +79,20 @@ export default function StorageDetailScreen() {
   };
 
   const renderItem = ({ item, index }: { item: { name: string; quantity: number }; index: number }) => (
-    <View style={styles.itemRow}>
+    <TouchableOpacity
+      style={styles.itemRow}
+      onPress={() => setSelectedItemIndex(index)}
+    >
       <Text style={styles.itemText}>{item.name} (x{item.quantity})</Text>
-      <TouchableOpacity onPress={() => setConfirmDeleteIndex(index)}>
+      <TouchableOpacity
+        onPress={(event) => {
+          event.stopPropagation();
+          setConfirmDeleteIndex(index);
+        }}
+      >
         <Ionicons name="trash-outline" size={22} color="red" />
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -167,7 +177,97 @@ export default function StorageDetailScreen() {
           </View>
         </View>
       </Modal>
+      
+      <Modal
+        visible={selectedItemIndex !== null && actionType === null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedItemIndex(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Что сделать с предметом?</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.create}
+                onPress={() => setActionType('add')}
+              >
+                <Text style={{ color: '#fff' }}>Добавить</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cancel}
+                onPress={() => setActionType('subtract')}
+              >
+                <Text style={{ color: '#fff' }}>Уменьшить</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
+      <Modal
+        visible={selectedItemIndex !== null && actionType !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setSelectedItemIndex(null);
+          setActionType(null);
+          setAdjustQuantity('');
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>
+              {actionType === 'add' ? 'Добавить' : 'Уменьшить'} количество
+            </Text>
+            <TextInput
+              placeholder="Количество"
+              value={adjustQuantity}
+              onChangeText={setAdjustQuantity}
+              keyboardType="numeric"
+              style={styles.input}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancel}
+                onPress={() => {
+                  setSelectedItemIndex(null);
+                  setActionType(null);
+                  setAdjustQuantity('');
+                }}
+              >
+                <Text style={{ color: '#fff' }}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.create}
+                onPress={async () => {
+                  const delta = parseInt(adjustQuantity);
+                  if (isNaN(delta) || delta <= 0 || selectedItemIndex === null) return;
+
+                  const updated = [...items];
+                  const current = updated[selectedItemIndex];
+                  let newQty =
+                    actionType === 'add'
+                      ? current.quantity + delta
+                      : current.quantity - delta;
+
+                  newQty = Math.max(0, newQty);
+                  updated[selectedItemIndex] = { ...current, quantity: newQty };
+                  await saveItems(updated);
+                  setSelectedItemIndex(null);
+                  setActionType(null);
+                  setAdjustQuantity('');
+                }}
+              >
+                <Text style={{ color: '#fff' }}>Применить</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
       <FloatingButton onPress={() => setModalVisible(true)} />
     </View>
   );

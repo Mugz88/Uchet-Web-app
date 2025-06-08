@@ -3,15 +3,18 @@ import { View, StyleSheet, Image, processColor } from 'react-native';
 import { Colors } from '../../../../shared/tokens';
 import { CustomLink } from '../../../../shared/CustomLink/CustomLink';
 import { CloseDrawer } from '../../../../features/layout/ui/CloseDrawer/CloseDrawer.android';
-import CoursesIcon from '../../../../assets/menu/courses';
-import ProfileIcon from '../../../../assets/menu/profile';
+import StorageIcon from '../../../../assets/menu/storage';
+import HomeIcon from '../../../../assets/menu/home';
+import HistoryIcon from '../../../../assets/menu/history';
+import DocsIcon from '../../../../assets/menu/norms';
 import { MenuItem } from '../../../../entities/layout/ui/MenuItem/MenuItem';
 import { useAuth } from '../../../../entities/auth/AuthContext';
 import { getBackgroundColorAsync } from 'expo-system-ui';
 const MENU = [
-	{ text: 'Главная', icon: <CoursesIcon />, path: 'home' },
-	{ text: 'Хранилища', icon: <ProfileIcon />, path: 'storage' },
-	{ text: 'Статистика', icon: <ProfileIcon />, path: 'stats' },
+	{ text: 'Главная', icon: <HomeIcon />, path: 'home' },
+	{ text: 'Хранилища', icon: <StorageIcon />, path: 'storage' },
+	{ text: 'История', icon: <HistoryIcon />, path: 'history' },
+	{ text: 'Нормативы', icon: <DocsIcon />, path: 'norms' },
 ];
 
 export function CustomDrawer(props: DrawerContentComponentProps) {
@@ -19,7 +22,7 @@ export function CustomDrawer(props: DrawerContentComponentProps) {
 	return (
 		<DrawerContentScrollView {...props} contentContainerStyle={styles.scrollView}>
 			<View style={styles.content}>
-				<CloseDrawer {...props.navigation} />
+				<CloseDrawer />
 				{MENU.map((menu) => (
 					<MenuItem key={menu.path} {...menu} drawer={props} />
 				))}

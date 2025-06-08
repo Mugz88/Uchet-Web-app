@@ -1,4 +1,4 @@
 import { View, Text } from 'react-native';
-export default function Stats() {
+export default function History() {
   return <Text>...</Text>;
 }
