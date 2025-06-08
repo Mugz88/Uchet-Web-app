@@ -16,24 +16,28 @@ import { useLocalSearchParams } from 'expo-router';
 import FloatingButton from '../../shared/Button/FloatingButton';
 import { Ionicons } from '@expo/vector-icons';
 
-
+import { logHistory } from '../../shared/utils/logHistory';
+import { useAuth } from '../../entities/auth/AuthContext';
 
 export default function StorageDetailScreen() {
   const { storageId } = useLocalSearchParams<{ storageId: string }>();
-  const [items, setItems] = useState<{ name: string; quantity: number }[]>([]);
+  const [items, setItems] = useState<
+    { name: string; quantity: number; totalVolume: number; unitVolume: number }[]
+  >([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newItem, setNewItem] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [volume, setVolume] = useState('');
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
   const [actionType, setActionType] = useState<'add' | 'subtract' | null>(null);
   const [adjustQuantity, setAdjustQuantity] = useState('');
+  const { user } = useAuth();
 
   useEffect(() => {
     if (storageId) {
-      
       loadItems();
     }
   }, [storageId]);
@@ -69,21 +73,46 @@ export default function StorageDetailScreen() {
   const addItem = async () => {
     const trimmed = newItem.trim();
     const qty = parseInt(quantity);
-    if (!trimmed || isNaN(qty) || qty <= 0) return;
+    const vol = parseFloat(volume);
 
-    const updatedItems = [...items, { name: trimmed, quantity: qty }];
+    if (!trimmed || isNaN(qty) || qty <= 0 || isNaN(vol) || vol <= 0) return;
+
+    const unitVol = vol / qty;
+
+    const updatedItems = [
+      ...items,
+      {
+        name: trimmed,
+        quantity: qty,
+        totalVolume: vol,
+        unitVolume: unitVol,
+      },
+    ];
+
     await saveItems(updatedItems);
+    try {
+      await logHistory({
+        user: user?.loginUser || 'неизвестно',
+        itemName: trimmed,
+        amount: qty,
+        action: 'create',
+        storageId: String(storageId),
+      });
+    } catch (e) {
+      console.error('Ошибка при логировании:', e);
+    }
+
     setNewItem('');
     setQuantity('1');
+    setVolume('');
     setModalVisible(false);
   };
 
-  const renderItem = ({ item, index }: { item: { name: string; quantity: number }; index: number }) => (
-    <TouchableOpacity
-      style={styles.itemRow}
-      onPress={() => setSelectedItemIndex(index)}
-    >
-      <Text style={styles.itemText}>{item.name} (x{item.quantity})</Text>
+  const renderItem = ({ item, index }: { item: typeof items[number]; index: number }) => (
+    <TouchableOpacity style={styles.itemRow} onPress={() => setSelectedItemIndex(index)}>
+      <Text style={styles.itemText}>
+        {item.name} (x{item.quantity}, {item.totalVolume.toFixed(2)} m³)
+      </Text>
       <TouchableOpacity
         onPress={(event) => {
           event.stopPropagation();
@@ -105,12 +134,7 @@ export default function StorageDetailScreen() {
       />
 
       {/* Добавить предмет */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setModalVisible(false)}
-      >
+      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
@@ -128,6 +152,13 @@ export default function StorageDetailScreen() {
               placeholder="Количество"
               value={quantity}
               onChangeText={setQuantity}
+              keyboardType="numeric"
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Общий объём"
+              value={volume}
+              onChangeText={setVolume}
               keyboardType="numeric"
               style={styles.input}
             />
@@ -155,18 +186,27 @@ export default function StorageDetailScreen() {
             <Text style={styles.modalTitle}>Удалить предмет?</Text>
             <Text style={{ marginBottom: 20 }}>Это действие нельзя отменить.</Text>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancel}
-                onPress={() => setConfirmDeleteIndex(null)}
-              >
+              <TouchableOpacity style={styles.cancel} onPress={() => setConfirmDeleteIndex(null)}>
                 <Text style={{ color: '#fff' }}>Отмена</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.create}
                 onPress={async () => {
                   if (confirmDeleteIndex !== null) {
+                    const deletedItem = items[confirmDeleteIndex];
                     const updated = items.filter((_, i) => i !== confirmDeleteIndex);
                     await saveItems(updated);
+                    try {
+                      await logHistory({
+                        user: user?.loginUser || 'неизвестно',
+                        itemName: deletedItem.name,
+                        amount: deletedItem.quantity,
+                        action: 'delete',
+                        storageId: String(storageId),
+                      });
+                    } catch (e) {
+                      console.error('Ошибка при логировании:', e);
+                    }
                     setConfirmDeleteIndex(null);
                   }
                 }}
@@ -177,7 +217,8 @@ export default function StorageDetailScreen() {
           </View>
         </View>
       </Modal>
-      
+
+      {/* Модалка выбора действия */}
       <Modal
         visible={selectedItemIndex !== null && actionType === null}
         transparent
@@ -188,16 +229,10 @@ export default function StorageDetailScreen() {
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Что сделать с предметом?</Text>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.create}
-                onPress={() => setActionType('add')}
-              >
+              <TouchableOpacity style={styles.create} onPress={() => setActionType('add')}>
                 <Text style={{ color: '#fff' }}>Добавить</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.cancel}
-                onPress={() => setActionType('subtract')}
-              >
+              <TouchableOpacity style={styles.cancel} onPress={() => setActionType('subtract')}>
                 <Text style={{ color: '#fff' }}>Уменьшить</Text>
               </TouchableOpacity>
             </View>
@@ -205,6 +240,7 @@ export default function StorageDetailScreen() {
         </View>
       </Modal>
 
+      {/* Модалка изменения количества */}
       <Modal
         visible={selectedItemIndex !== null && actionType !== null}
         transparent
@@ -255,8 +291,27 @@ export default function StorageDetailScreen() {
                       : current.quantity - delta;
 
                   newQty = Math.max(0, newQty);
-                  updated[selectedItemIndex] = { ...current, quantity: newQty };
+                  const newTotalVolume = current.unitVolume * newQty;
+
+                  updated[selectedItemIndex] = {
+                    ...current,
+                    quantity: newQty,
+                    totalVolume: newTotalVolume,
+                  };
+
                   await saveItems(updated);
+                  try {
+                    await logHistory({
+                      user: user?.loginUser || 'неизвестно',
+                      itemName: current.name,
+                      amount: delta,
+                      action: actionType === 'add' ? 'add' : 'remove',
+                      storageId: String(storageId),
+                    });
+                  } catch (e) {
+                    console.error('Ошибка при логировании:', e);
+                  }
+
                   setSelectedItemIndex(null);
                   setActionType(null);
                   setAdjustQuantity('');
@@ -268,6 +323,7 @@ export default function StorageDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
       <FloatingButton onPress={() => setModalVisible(true)} />
     </View>
   );

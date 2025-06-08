@@ -15,10 +15,16 @@ import { useRouter } from 'expo-router';
 import FloatingButton from '../../shared/Button/FloatingButton';
 import { Ionicons } from '@expo/vector-icons';
 
+type StorageItem = {
+  name: string;
+  capacity: number;
+};
+
 export default function HomeScreen() {
-  const [storages, setStorages] = useState<string[]>([]);
+  const [storages, setStorages] = useState<StorageItem[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newStorageName, setNewStorageName] = useState('');
+  const [newCapacity, setNewCapacity] = useState('');
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const inputRef = useRef<TextInput>(null);
   const router = useRouter();
@@ -35,38 +41,54 @@ export default function HomeScreen() {
 
   const loadStorages = async () => {
     const data = await AsyncStorage.getItem('storages');
-    if (data) setStorages(JSON.parse(data));
-    else setStorages([]);
+    if (data) {
+      setStorages(JSON.parse(data));
+    } else {
+      setStorages([]);
+    }
   };
 
-  const saveStorages = async (newList: string[]) => {
+  const saveStorages = async (newList: StorageItem[]) => {
     setStorages(newList);
     await AsyncStorage.setItem('storages', JSON.stringify(newList));
   };
 
   const addStorage = async () => {
-    const trimmed = newStorageName.trim();
-    if (!trimmed || storages.includes(trimmed)) return;
+    const trimmedName = newStorageName.trim();
+    const parsedCapacity = parseInt(newCapacity, 10);
 
-    const updated = [...storages, trimmed];
+    if (
+      !trimmedName ||
+      storages.some((s) => s.name === trimmedName) ||
+      isNaN(parsedCapacity) ||
+      parsedCapacity <= 0
+    ) {
+      return;
+    }
+
+    const updated: StorageItem[] = [...storages, { name: trimmedName, capacity: parsedCapacity }];
     await saveStorages(updated);
     setNewStorageName('');
+    setNewCapacity('');
     setModalVisible(false);
   };
 
   const deleteStorage = async (index: number) => {
-    const name = storages[index];
+    const name = storages[index].name;
     const updated = storages.filter((_, i) => i !== index);
     await saveStorages(updated);
-    await AsyncStorage.removeItem(`items:${name}`); // удалить связанные предметы
+    await AsyncStorage.removeItem(`items:${name}`);
   };
 
-  const renderItem = ({ item, index }: { item: string; index: number }) => (
+  const renderItem = ({ item, index }: { item: StorageItem; index: number }) => (
     <TouchableOpacity
       style={styles.storageBox}
-      onPress={() => router.push(`/${encodeURIComponent(item)}`)}
+      onPress={() => router.push(`/${encodeURIComponent(item.name)}`)}
     >
-      <Text style={styles.storageText}>{item}</Text>
+      <View>
+        <Text style={styles.storageText}>{item.name}</Text>
+        <Text style={styles.capacityText}>Вместимость: {item.capacity}</Text>
+      </View>
       <TouchableOpacity onPress={() => setConfirmDeleteIndex(index)}>
         <Ionicons name="trash-outline" size={22} color="red" />
       </TouchableOpacity>
@@ -77,12 +99,12 @@ export default function HomeScreen() {
     <View style={{ flex: 1, padding: 20 }}>
       <FlatList
         data={storages}
-        keyExtractor={(item, index) => index.toString()}
+        keyExtractor={(_, index) => index.toString()}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 100 }}
       />
 
-      {/* Добавление хранилища */}
+      {/* Модалка: добавление */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -97,9 +119,16 @@ export default function HomeScreen() {
             <Text style={styles.modalTitle}>Новое хранилище</Text>
             <TextInput
               ref={inputRef}
-              placeholder="Введите название"
+              placeholder="Название"
               value={newStorageName}
               onChangeText={setNewStorageName}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Вместимость (число)"
+              value={newCapacity}
+              onChangeText={setNewCapacity}
+              keyboardType="numeric"
               style={styles.input}
             />
             <View style={styles.modalActions}>
@@ -114,7 +143,7 @@ export default function HomeScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Подтверждение удаления */}
+      {/* Модалка: подтверждение удаления */}
       <Modal
         visible={confirmDeleteIndex !== null}
         animationType="fade"
@@ -126,10 +155,7 @@ export default function HomeScreen() {
             <Text style={styles.modalTitle}>Удалить хранилище?</Text>
             <Text style={{ marginBottom: 20 }}>Все предметы внутри будут удалены.</Text>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancel}
-                onPress={() => setConfirmDeleteIndex(null)}
-              >
+              <TouchableOpacity style={styles.cancel} onPress={() => setConfirmDeleteIndex(null)}>
                 <Text style={{ color: '#fff' }}>Отмена</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -166,6 +192,10 @@ const styles = StyleSheet.create({
   storageText: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  capacityText: {
+    fontSize: 14,
+    color: '#444',
   },
   modalOverlay: {
     flex: 1,
